@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(cuid())
+  stellarPublicKey String   @unique @map("stellar_public_key")
+  displayName      String   @map("display_name")
+  avatarUrl        String?  @map("avatar_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  memberships      GroupMember[]
+  createdGroups    Group[]              @relation("GroupCreator")
+  paidExpenses     Expense[]            @relation("ExpensePayer")
+  shares           ExpenseShare[]
+  settlementsFrom  Settlement[]         @relation("SettlementFrom")
+  settlementsTo    Settlement[]         @relation("SettlementTo")
+  treasuryTxs      TreasuryTransaction[]
+  invites          Invite[]
+  anchorSessions   AnchorSession[]
+  auditLogs        AuditLog[]
+
+  @@map("users")
+}
+
+model Group {
+  id                      String   @id @default(cuid())
+  name                    String
+  description             String?
+  createdByUserId         String   @map("created_by_user_id")
+  treasuryEnabled         Boolean  @default(false) @map("treasury_enabled")
+  treasuryAccountPublicKey String? @map("treasury_account_public_key")
+  treasuryRequiredSigners Int?     @map("treasury_required_signers")
+  archived                Boolean  @default(false)
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  createdBy   User                  @relation("GroupCreator", fields: [createdByUserId], references: [id])
+  members     GroupMember[]
+  expenses    Expense[]
+  settlements Settlement[]
+  treasuryTxs TreasuryTransaction[]
+  invites     Invite[]
+
+  @@index([createdByUserId])
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String   @id @default(cuid())
+  groupId  String   @map("group_id")
+  userId   String   @map("user_id")
+  role     String   @default("member")
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  groupId     String   @map("group_id")
+  payerUserId String   @map("payer_user_id")
+  title       String
+  description String?
+  amount      Decimal  @db.Decimal(20, 7)
+  assetCode   String   @map("asset_code")
+  assetIssuer String?  @map("asset_issuer")
+  splitType   String   @map("split_type")
+  memo        String?
+  receiptUrl  String?  @map("receipt_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  group  Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  payer  User           @relation("ExpensePayer", fields: [payerUserId], references: [id])
+  shares ExpenseShare[]
+
+  @@index([groupId])
+  @@map("expenses")
+}
+
+model ExpenseShare {
+  id          String  @id @default(cuid())
+  expenseId   String  @map("expense_id")
+  userId      String  @map("user_id")
+  shareAmount Decimal @db.Decimal(20, 7) @map("share_amount")
+  status      String  @default("pending")
+
+  expense     Expense      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id])
+  settlements Settlement[]
+
+  @@index([expenseId])
+  @@index([userId])
+  @@map("expense_shares")
+}
+
+model Settlement {
+  id             String   @id @default(cuid())
+  shortCode      String   @unique @map("short_code")
+  groupId        String   @map("group_id")
+  fromUserId     String   @map("from_user_id")
+  toUserId       String   @map("to_user_id")
+  amount         Decimal  @db.Decimal(20, 7)
+  assetCode      String   @map("asset_code")
+  assetIssuer    String?  @map("asset_issuer")
+  stellarTxHash  String?  @map("stellar_tx_hash")
+  status         String   @default("pending")
+  memo           String?
+  expenseId      String?  @map("expense_id")
+  expenseShareId String?  @map("expense_share_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  group        Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  from         User          @relation("SettlementFrom", fields: [fromUserId], references: [id])
+  to           User          @relation("SettlementTo", fields: [toUserId], references: [id])
+  expenseShare ExpenseShare? @relation(fields: [expenseShareId], references: [id])
+
+  @@index([groupId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+  @@map("settlements")
+}
+
+model TreasuryTransaction {
+  id            String   @id @default(cuid())
+  shortCode     String   @unique @map("short_code")
+  groupId       String   @map("group_id")
+  userId        String?  @map("user_id")
+  direction     String
+  amount        Decimal  @db.Decimal(20, 7)
+  assetCode     String   @map("asset_code")
+  assetIssuer   String?  @map("asset_issuer")
+  destination   String?
+  stellarTxHash String?  @map("stellar_tx_hash")
+  status        String   @default("pending")
+  memo          String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id])
+
+  @@index([groupId])
+  @@index([status])
+  @@map("treasury_transactions")
+}
+
+model Invite {
+  id              String    @id @default(cuid())
+  groupId         String    @map("group_id")
+  code            String    @unique
+  expiresAt       DateTime? @map("expires_at")
+  createdByUserId String    @map("created_by_user_id")
+  maxUses         Int?      @map("max_uses")
+  uses            Int       @default(0)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy User  @relation(fields: [createdByUserId], references: [id])
+
+  @@index([groupId])
+  @@map("invites")
+}
+
+model AnchorSession {
+  id                    String   @id @default(cuid())
+  userId                String   @map("user_id")
+  anchorName            String   @map("anchor_name")
+  kind                  String
+  assetCode             String   @map("asset_code")
+  interactiveUrl        String?  @map("interactive_url")
+  externalTransactionId String?  @map("external_transaction_id")
+  anchorToken           String?  @map("anchor_token")
+  status                String   @default("incomplete")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([externalTransactionId])
+  @@map("anchor_sessions")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?  @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("audit_logs")
+}

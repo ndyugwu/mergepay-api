@@ -1,0 +1,211 @@
+import { FastifyInstance } from "fastify";
+import { z } from "zod";
+import { prisma } from "../db";
+import { Errors } from "../errors";
+import { requireUser } from "../plugins/auth";
+import { requireMembership } from "../services/access";
+import { computeShares, type SplitType } from "../services/settlement";
+import { isPositive } from "../services/money";
+import { shortCode } from "../services/codes";
+import { audit } from "../services/audit";
+import { serializeExpense } from "../serializers";
+
+const shareInput = z.object({
+  userId: z.string(),
+  amount: z.string().optional(),
+  percent: z.number().optional(),
+});
+
+const createExpenseSchema = z.object({
+  title: z.string().min(1).max(80),
+  description: z.string().max(500).optional(),
+  amount: z.string().min(1),
+  assetCode: z.string().min(1).max(12),
+  assetIssuer: z.string().nullable().optional(),
+  splitType: z.enum(["equal", "custom", "percentage"]),
+  shares: z.array(shareInput).min(1),
+  payerUserId: z.string().optional(),
+  memo: z.string().max(24).optional(),
+  receiptUrl: z.string().nullable().optional(),
+});
+
+const expenseInclude = {
+  payer: true,
+  shares: { include: { user: true } },
+} as const;
+
+export default async function expenseRoutes(app: FastifyInstance) {
+  app.addHook("preHandler", app.authenticate);
+
+  // -- create -----------------------------------------------------------------
+  app.post("/groups/:id/expenses", async (req) => {
+    const auth = requireUser(req);
+    const { id: groupId } = z.object({ id: z.string() }).parse(req.params);
+    await requireMembership(groupId, auth.id);
+
+    const body = createExpenseSchema.parse(req.body);
+    if (!isPositive(body.amount)) {
+      throw Errors.badRequest("invalid_amount", "Amount must be greater than zero");
+    }
+
+    const payerUserId = body.payerUserId ?? auth.id;
+
+    // All participants (and payer) must be members of the group.
+    const memberIds = new Set(
+      (
+        await prisma.groupMember.findMany({
+          where: { groupId },
+          select: { userId: true },
+        })
+      ).map((m) => m.userId)
+    );
+    if (!memberIds.has(payerUserId)) {
+      throw Errors.badRequest("invalid_payer", "Payer must be a group member");
+    }
+    for (const s of body.shares) {
+      if (!memberIds.has(s.userId)) {
+        throw Errors.badRequest(
+          "invalid_participant",
+          "All participants must be group members"
+        );
+      }
+    }
+
+    let computed;
+    try {
+      computed = computeShares(body.amount, body.splitType as SplitType, body.shares);
+    } catch (e: any) {
+      throw Errors.badRequest("invalid_split", e?.message ?? "Invalid split");
+    }
+
+    const memo = body.memo?.trim() || shortCode().slice(0, 8);
+
+    const expense = await prisma.expense.create({
+      data: {
+        groupId,
+        payerUserId,
+        title: body.title,
+        description: body.description,
+        amount: body.amount,
+        assetCode: body.assetCode,
+        assetIssuer: body.assetIssuer ?? null,
+        splitType: body.splitType,
+        memo,
+        receiptUrl: body.receiptUrl ?? null,
+        shares: {
+          create: computed.map((c) => ({
+            userId: c.userId,
+            shareAmount: c.shareAmount,
+            // The payer's own share is already covered — mark it settled.
+            status: c.userId === payerUserId ? "settled" : "pending",
+          })),
+        },
+      },
+      include: expenseInclude,
+    });
+
+    await audit({
+      userId: auth.id,
+      action: "expense.create",
+      entityType: "expense",
+      entityId: expense.id,
+      metadata: { groupId, amount: body.amount, assetCode: body.assetCode },
+    });
+
+    return { expense: serializeExpense(expense) };
+  });
+
+  // -- list -------------------------------------------------------------------
+  app.get("/groups/:id/expenses", async (req) => {
+    const auth = requireUser(req);
+    const { id: groupId } = z.object({ id: z.string() }).parse(req.params);
+    await requireMembership(groupId, auth.id);
+
+    const expenses = await prisma.expense.findMany({
+      where: { groupId },
+      include: expenseInclude,
+      orderBy: { createdAt: "desc" },
+    });
+    return { expenses: expenses.map(serializeExpense) };
+  });
+
+  // -- get one ----------------------------------------------------------------
+  app.get("/expenses/:id", async (req) => {
+    const auth = requireUser(req);
+    const { id } = z.object({ id: z.string() }).parse(req.params);
+    const expense = await prisma.expense.findUnique({
+      where: { id },
+      include: expenseInclude,
+    });
+    if (!expense) throw Errors.notFound("Expense not found");
+    await requireMembership(expense.groupId, auth.id);
+    return { expense: serializeExpense(expense) };
+  });
+
+  // -- update (metadata only) -------------------------------------------------
+  app.patch("/expenses/:id", async (req) => {
+    const auth = requireUser(req);
+    const { id } = z.object({ id: z.string() }).parse(req.params);
+    const body = z
+      .object({
+        title: z.string().min(1).max(80).optional(),
+        description: z.string().max(500).nullable().optional(),
+        memo: z.string().max(24).optional(),
+        receiptUrl: z.string().nullable().optional(),
+      })
+      .parse(req.body);
+
+    const expense = await prisma.expense.findUnique({ where: { id } });
+    if (!expense) throw Errors.notFound("Expense not found");
+    const ctx = await requireMembership(expense.groupId, auth.id);
+    if (expense.payerUserId !== auth.id && ctx.role !== "admin") {
+      throw Errors.forbidden("Only the payer or an admin can edit this expense");
+    }
+
+    const updated = await prisma.expense.update({
+      where: { id },
+      data: {
+        ...(body.title !== undefined && { title: body.title }),
+        ...(body.description !== undefined && { description: body.description }),
+        ...(body.memo !== undefined && { memo: body.memo }),
+        ...(body.receiptUrl !== undefined && { receiptUrl: body.receiptUrl }),
+      },
+      include: expenseInclude,
+    });
+    return { expense: serializeExpense(updated) };
+  });
+
+  // -- delete -----------------------------------------------------------------
+  app.delete("/expenses/:id", async (req) => {
+    const auth = requireUser(req);
+    const { id } = z.object({ id: z.string() }).parse(req.params);
+
+    const expense = await prisma.expense.findUnique({
+      where: { id },
+      include: { shares: true },
+    });
+    if (!expense) throw Errors.notFound("Expense not found");
+    const ctx = await requireMembership(expense.groupId, auth.id);
+    if (expense.payerUserId !== auth.id && ctx.role !== "admin") {
+      throw Errors.forbidden("Only the payer or an admin can delete this expense");
+    }
+    const hasSettled = expense.shares.some(
+      (s) => s.status === "settled" && s.userId !== expense.payerUserId
+    );
+    if (hasSettled) {
+      throw Errors.conflict(
+        "expense_settled",
+        "Cannot delete an expense that already has settled shares"
+      );
+    }
+
+    await prisma.expense.delete({ where: { id } });
+    await audit({
+      userId: auth.id,
+      action: "expense.delete",
+      entityType: "expense",
+      entityId: id,
+    });
+    return { ok: true };
+  });
+}
