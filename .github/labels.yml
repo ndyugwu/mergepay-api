@@ -1,0 +1,36 @@
+# Drips Wave + project labels for mergepay-api.
+# Create them in the repo (GitHub → Issues → Labels), or with the GitHub CLI:
+#   gh label create "complexity: trivial" --color BFE9F0 --description "..."
+# See DRIPS_WAVE.md §3.
+
+- name: "drips-wave"
+  color: "6C4DF6"
+  description: "Tracked in a Drips Wave program"
+
+- name: "complexity: trivial"
+  color: "BFE9F0"
+  description: "Drips Wave — small, well-bounded task"
+
+- name: "complexity: medium"
+  color: "D7F94B"
+  description: "Drips Wave — moderate scope, some design"
+
+- name: "complexity: high"
+  color: "FF8A3C"
+  description: "Drips Wave — large or cross-cutting task"
+
+- name: "good first issue"
+  color: "0E8A16"
+  description: "Good entry point for new contributors"
+
+- name: "stellar"
+  color: "08B5E5"
+  description: "Touches Stellar / SEP integration"
+
+- name: "security"
+  color: "B60205"
+  description: "Security-sensitive change"
+
+- name: "docs"
+  color: "1D76DB"
+  description: "Documentation only"

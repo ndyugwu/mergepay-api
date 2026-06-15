@@ -18,15 +18,32 @@ Thanks for helping build an open-source, Stellar-native public good!
 
 ## Issue labels
 
-`bug`, `feature`, `stellar`, `security`, `good first issue`, `docs`.
+`bug`, `feature`, `stellar`, `security`, `good first issue`, `docs`, and the Drips
+Wave labels `drips-wave` + one of `complexity: trivial | medium | high`
+(see [.github/labels.yml](.github/labels.yml)).
+
+## Drips Wave contributors
+
+This repo participates in the Stellar **Drips Wave** program. If you're here for a
+Wave task:
+
+1. **Find an issue** labelled `drips-wave` (see also [DRIPS_WAVE.md](DRIPS_WAVE.md)).
+2. **Claim it publicly** — comment on the issue to be assigned before you start, so
+   work isn't duplicated.
+3. **Keep all communication on the issue/PR thread.** No DMs — discussion, questions,
+   and decisions stay public and linked to the task.
+4. **One PR per issue, and link it** — every PR must reference the issue it resolves
+   (`Closes #NN`). PRs not tied to an issue will be asked to open one first.
+5. Reward points map to the issue's `complexity:*` label.
 
 ## PR checklist
 
+- [ ] Linked to an issue (`Closes #NN`)
 - [ ] `npm run build` passes (zero TS errors)
 - [ ] `npm test` passes (no DB/network needed — mock them)
 - [ ] New endpoints validated with Zod + permission checks
 - [ ] Contract changes mirrored in `mergepay-web`
-- [ ] No secrets committed
+- [ ] No secrets committed; user private keys never handled
 
 ## Tests
 

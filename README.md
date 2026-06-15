@@ -7,8 +7,8 @@
 Authentication, group & expense logic, the settlement engine, Stellar
 integration, treasury multisig, anchor (SEP-24) flows, and background jobs.
 
-[Web repo](https://github.com/Cjay-Cyber-2/mergepay-web) ·
-[API repo](https://github.com/Cjay-Cyber-2/mergepay-api)
+[Web repo](https://github.com/mergepay/mergepay-web) ·
+[API repo](https://github.com/mergepay/mergepay-api)
 
 </div>
 
@@ -17,7 +17,17 @@ integration, treasury multisig, anchor (SEP-24) flows, and background jobs.
 Mergepay is a Stellar-native group settlement app that turns shared spending into
 transparent, auditable, low-fee on-chain payments for friends, roommates, and
 small communities. This is the **backend**; the frontend lives in
-[`mergepay-web`](https://github.com/Cjay-Cyber-2/mergepay-web).
+[`mergepay-web`](https://github.com/mergepay/mergepay-web).
+
+> **Built on Stellar.** Every settlement is a real on-chain Stellar payment: login is
+> SEP-10 wallet auth, payments carry a `MP:<code>` memo linking them to an expense,
+> balances settle in XLM or USDC over trustlines, shared treasuries use Stellar
+> multisig, and fiat on/off-ramp goes through SEP-24 anchors. The server never holds
+> user keys — it builds unsigned XDRs that the user's wallet signs.
+>
+> **🌊 Open to contributors via Drips Wave (Stellar ecosystem).** Scoped, bounty-ready
+> issues live in [DRIPS_WAVE.md](DRIPS_WAVE.md); see [CONTRIBUTING.md](CONTRIBUTING.md)
+> to get started.
 
 ## Why Stellar
 
@@ -64,7 +74,7 @@ its own SEP-10 signing key.
 ## Setup
 
 ```bash
-git clone https://github.com/Cjay-Cyber-2/mergepay-api.git
+git clone https://github.com/mergepay/mergepay-api.git
 cd mergepay-api
 npm install
 cp .env.example .env
