@@ -21,7 +21,7 @@ Wave Program** and to run it well. It is split into:
 
 - [x] **GitHub Organization host** — repo lives under the `mergepay` org (not a personal account).
 - [x] **Open-source license** — [`LICENSE`](LICENSE) (MIT).
-- [x] **`FUNDING.json`** at the repo root on the default branch (address must be set — see §2).
+- [x] **`FUNDING.json`** at the repo root on the default branch (maintainer's address `0x39746A9E08B9f7b24b1E1538fBD5e065ee5b2B30` is set).
 - [x] **README with ecosystem utility** — top of [`README.md`](README.md) states the Stellar integration (SEP-10, payments+memos, trustlines, multisig, SEP-24).
 - [x] **5-minute setup guide** — copy-paste `git clone` → `npm install` → `npm run dev` in the README.
 - [x] **`CONTRIBUTING.md`** — PR standards, coding standards, testing workflow, public-communication rule, and the Drips claim/complexity flow.
@@ -31,7 +31,7 @@ Wave Program** and to run it well. It is split into:
 ### 🧑‍💻 Human steps only you can do (cannot be committed)
 
 - [ ] **Repo is Public** — confirm in GitHub repo Settings.
-- [ ] **Set your Ethereum address** in `FUNDING.json` (§2) and commit to `main`.
+- [x] ~~Set your Ethereum address in `FUNDING.json`~~ — done (`0x3974…2B30`).
 - [ ] **Claim the project on Drips** — Drips App → connect wallet → Projects → Claim, which verifies `FUNDING.json`.
 - [ ] **Install the Drips Wave GitHub App** on the `mergepay` org with read/write on issues, labels, and PRs.
 - [ ] **Create the complexity labels** (§3) in the repo.
@@ -43,16 +43,15 @@ Wave Program** and to run it well. It is split into:
 
 ## 2. `FUNDING.json` — set your address
 
-The file at the repo root currently contains a **placeholder** zero address:
+The file at the repo root is already set to the maintainer's address:
 
 ```json
-{ "drips": { "ethereum": { "ownedBy": "0x0000000000000000000000000000000000000000" } } }
+{ "drips": { "ethereum": { "ownedBy": "0x39746A9E08B9f7b24b1E1538fBD5e065ee5b2B30" } } }
 ```
 
-Replace `0x0000…0000` with the **Ethereum address you will claim the project with**
-in the Drips App, then commit it to the default branch. Drips reads this file to
-verify you are the legitimate maintainer. The claim will fail (safely) until the
-address matches your connected wallet — it will never silently use the wrong one.
+Drips reads this file to verify you are the legitimate maintainer. When you claim the
+project in the Drips App, connect the **MetaMask wallet that owns this address** — the
+claim verifies the two match.
 
 If the Wave you join settles on a different chain (e.g. Optimism, Filecoin), add that
 network key alongside `ethereum`:
