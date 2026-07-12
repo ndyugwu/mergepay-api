@@ -34,8 +34,8 @@ Wave Program** and to run it well. It is split into:
 - [x] ~~Set your Ethereum address in `FUNDING.json`~~ — done (`0x3974…2B30`).
 - [ ] **Claim the project on Drips** — Drips App → connect wallet → Projects → Claim, which verifies `FUNDING.json`.
 - [ ] **Install the Drips Wave GitHub App** on the `mergepay` org with read/write on issues, labels, and PRs.
-- [ ] **Create the complexity labels** (§3) in the repo.
-- [ ] **File the 6 issues** (§4) and apply a complexity label to each.
+- [x] **Create the complexity labels** (§3) in the repo.
+- [x] **File the 6 issues** (§4) and apply a complexity label to each.
 - [ ] **Apply to the Stellar Wave Program** in the Drips Wave app and wait for approval.
 - [ ] **Complete KYC / identity verification** on Drips (required before distributing rewards).
 
