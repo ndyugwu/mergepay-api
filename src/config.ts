@@ -11,6 +11,9 @@ const schema = z.object({
   JWT_SECRET: z.string().default("change-me-in-production"),
   STELLAR_NETWORK: z.enum(["testnet", "public"]).default("public"),
   HORIZON_URL: z.string().default("https://horizon.stellar.org"),
+  FEE_CACHE_TTL: z.coerce.number().positive().default(30),
+  MAX_FEE_STROOPS: z.coerce.number().int().positive().default(1000),
+  DEFAULT_FEE_STROOPS: z.coerce.number().int().positive().default(100),
   SEP10_SIGNING_SECRET: z.string().optional(),
   // If not set, derived from API_PUBLIC_URL so the deployed domain is used automatically.
   SEP10_HOME_DOMAIN: z.string().optional(),
